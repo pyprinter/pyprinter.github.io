@@ -98,10 +98,10 @@
 
     <form id="request-form">
       <label for="title">Request Title</label>
-      <input type="text" id="title" name="title" placeholder="Brief summary of your request" required maxlength="120">
+      <input type="text" id="title" placeholder="Brief summary of your request" required maxlength="120">
 
       <label for="message">Message</label>
-      <textarea id="message" name="message" placeholder="Describe your request in detail..." required maxlength="2000"></textarea>
+      <textarea id="message" placeholder="Describe your request in detail..." required maxlength="2000"></textarea>
 
       <button type="submit" id="submit-btn">Send Request</button>
     </form>
@@ -109,56 +109,48 @@
     <div class="status" id="status"></div>
   </div>
 
-  <!-- Hidden form + iframe for CORS-free submission -->
-  <iframe name="submit-target" style="display:none"></iframe>
-  <form id="hidden-form" method="GET" target="submit-target" style="display:none">
-    <input type="hidden" name="email" id="h-email">
-    <input type="hidden" name="name" id="h-name">
-    <input type="hidden" name="title" id="h-title">
-    <input type="hidden" name="message" id="h-message">
-    <input type="hidden" name="timestamp" id="h-timestamp">
-  </form>
-
   <script>
-    // Redirect to login if not signed in
     const email = sessionStorage.getItem('user_email');
-    const name = sessionStorage.getItem('user_name');
-    if (!email) {
-      window.location.href = 'login.html';
-    }
+    const name  = sessionStorage.getItem('user_name');
+    if (!email) window.location.href = 'login.html';
 
     document.getElementById('user-badge').textContent = email;
 
-    // Replace with your deployed Google Apps Script URL
-    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxjxYrYkgjVyPcnp1EkHN1eEShAdfo43RQWRGE8iMC4fnW_MAtj6SNpl5iRejHc6WbA/exec';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxjxYrYkgjVyPcnp1EkHN1eEShAdfo43RQWRGE8iMC4fnW_MAtj6SNpl5iRejHc6WbA/exec';
 
-    document.getElementById('request-form').addEventListener('submit', async function(e) {
+    document.getElementById('request-form').addEventListener('submit', function(e) {
       e.preventDefault();
 
-      const btn = document.getElementById('submit-btn');
+      const btn    = document.getElementById('submit-btn');
       const status = document.getElementById('status');
       btn.disabled = true;
       btn.textContent = 'Sending...';
       status.style.display = 'none';
 
-      // Populate hidden form and submit to hidden iframe (bypasses CORS)
-      const hiddenForm = document.getElementById('hidden-form');
-      hiddenForm.action = APPS_SCRIPT_URL;
-      document.getElementById('h-email').value = email;
-      document.getElementById('h-name').value = name;
-      document.getElementById('h-title').value = document.getElementById('title').value.trim();
-      document.getElementById('h-message').value = document.getElementById('message').value.trim();
-      document.getElementById('h-timestamp').value = new Date().toISOString();
-      hiddenForm.submit();
+      const payload = JSON.stringify({
+        email:     email,
+        name:      name,
+        title:     document.getElementById('title').value.trim(),
+        message:   document.getElementById('message').value.trim(),
+        timestamp: new Date().toISOString()
+      });
 
-      // Wait 2s for submission then show success
-      await new Promise(r => setTimeout(r, 2000));
-      status.textContent = 'Request sent successfully!';
-      status.className = 'status success';
-      status.style.display = 'block';
-      document.getElementById('request-form').reset();
-      btn.textContent = 'Send Request';
-      btn.disabled = false;
+      // sendBeacon: fire-and-forget, cross-origin, follows redirects
+      const sent = navigator.sendBeacon(SCRIPT_URL, new Blob([payload], { type: 'application/json' }));
+
+      setTimeout(function() {
+        if (sent) {
+          status.textContent = 'Request sent!';
+          status.className = 'status success';
+          document.getElementById('request-form').reset();
+        } else {
+          status.textContent = 'Failed to send. Please try again.';
+          status.className = 'status error';
+        }
+        status.style.display = 'block';
+        btn.textContent = 'Send Request';
+        btn.disabled = false;
+      }, 1500);
     });
   </script>
 </body>
