@@ -109,6 +109,16 @@
     <div class="status" id="status"></div>
   </div>
 
+  <!-- Hidden form + iframe for CORS-free submission -->
+  <iframe name="submit-target" style="display:none"></iframe>
+  <form id="hidden-form" method="GET" target="submit-target" style="display:none">
+    <input type="hidden" name="email" id="h-email">
+    <input type="hidden" name="name" id="h-name">
+    <input type="hidden" name="title" id="h-title">
+    <input type="hidden" name="message" id="h-message">
+    <input type="hidden" name="timestamp" id="h-timestamp">
+  </form>
+
   <script>
     // Redirect to login if not signed in
     const email = sessionStorage.getItem('user_email');
@@ -131,37 +141,24 @@
       btn.textContent = 'Sending...';
       status.style.display = 'none';
 
-      const params = new URLSearchParams({
-        email: email,
-        name: name,
-        title: document.getElementById('title').value.trim(),
-        message: document.getElementById('message').value.trim(),
-        timestamp: new Date().toISOString()
-      });
+      // Populate hidden form and submit to hidden iframe (bypasses CORS)
+      const hiddenForm = document.getElementById('hidden-form');
+      hiddenForm.action = APPS_SCRIPT_URL;
+      document.getElementById('h-email').value = email;
+      document.getElementById('h-name').value = name;
+      document.getElementById('h-title').value = document.getElementById('title').value.trim();
+      document.getElementById('h-message').value = document.getElementById('message').value.trim();
+      document.getElementById('h-timestamp').value = new Date().toISOString();
+      hiddenForm.submit();
 
-      try {
-        await new Promise((resolve) => {
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.onload = iframe.onerror = resolve;
-          iframe.src = APPS_SCRIPT_URL + '?' + params.toString();
-          document.body.appendChild(iframe);
-          setTimeout(resolve, 3000); // fallback after 3s
-        });
-
-        status.textContent = 'Request sent successfully!';
-        status.className = 'status success';
-        status.style.display = 'block';
-        document.getElementById('request-form').reset();
-        btn.textContent = 'Send Request';
-        btn.disabled = false;
-      } catch (err) {
-        status.textContent = 'Failed to send. Please try again.';
-        status.className = 'status error';
-        status.style.display = 'block';
-        btn.textContent = 'Send Request';
-        btn.disabled = false;
-      }
+      // Wait 2s for submission then show success
+      await new Promise(r => setTimeout(r, 2000));
+      status.textContent = 'Request sent successfully!';
+      status.className = 'status success';
+      status.style.display = 'block';
+      document.getElementById('request-form').reset();
+      btn.textContent = 'Send Request';
+      btn.disabled = false;
     });
   </script>
 </body>
