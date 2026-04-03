@@ -131,20 +131,18 @@
       btn.textContent = 'Sending...';
       status.style.display = 'none';
 
-      const payload = {
+      const params = new URLSearchParams({
         email: email,
         name: name,
         title: document.getElementById('title').value.trim(),
         message: document.getElementById('message').value.trim(),
         timestamp: new Date().toISOString()
-      };
+      });
 
       try {
-        await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+        await fetch(APPS_SCRIPT_URL + '?' + params.toString(), {
+          method: 'GET',
+          mode: 'no-cors'
         });
 
         status.textContent = 'Request sent successfully!';
