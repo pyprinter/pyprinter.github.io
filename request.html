@@ -140,10 +140,13 @@
       });
 
       try {
-        await new Promise((resolve, reject) => {
-          const img = new Image();
-          img.onload = img.onerror = resolve; // both = request was made
-          img.src = APPS_SCRIPT_URL + '?' + params.toString();
+        await new Promise((resolve) => {
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.onload = iframe.onerror = resolve;
+          iframe.src = APPS_SCRIPT_URL + '?' + params.toString();
+          document.body.appendChild(iframe);
+          setTimeout(resolve, 3000); // fallback after 3s
         });
 
         status.textContent = 'Request sent successfully!';
