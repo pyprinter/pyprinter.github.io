@@ -36,50 +36,33 @@
     <h1>Submit a Request</h1>
     <p>Sign in with your Google account to continue.</p>
     <div class="g-signin">
-      <div id="signin-btn"></div>
+      <div id="g_id_onload"
+        data-client_id="997874091474-oub3k58f1v27taccjqbqd2ugvf4ndblh.apps.googleusercontent.com"
+        data-callback="handleCredential"
+        data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin"
+        data-type="standard"
+        data-shape="pill"
+        data-theme="outline"
+        data-text="sign_in_with"
+        data-size="large">
+      </div>
     </div>
     <div class="error" id="error">Sign-in failed. Please try again.</div>
   </div>
 
   <script>
-    const CLIENT_ID = '997874091474-oub3k58f1v27taccjqbqd2ugvf4ndblh.apps.googleusercontent.com';
-    const SHEET_ID  = '1imUUwGu_rZgUq2AHVPY4Wi5_5yrFuLlXjtq1wBjiPs8';
-
-    function parseJwt(token) {
-      return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    function handleCredential(response) {
+      try {
+        const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+        sessionStorage.setItem('user_email', payload.email);
+        sessionStorage.setItem('user_name', payload.name || payload.email);
+        window.location.href = 'request.html';
+      } catch(e) {
+        document.getElementById('error').style.display = 'block';
+      }
     }
-
-    window.onload = function() {
-      // Step 1: Sign in to get identity
-      google.accounts.id.initialize({
-        client_id: CLIENT_ID,
-        callback: function(resp) {
-          const payload = parseJwt(resp.credential);
-          sessionStorage.setItem('user_email', payload.email);
-          sessionStorage.setItem('user_name', payload.name || payload.email);
-
-          // Step 2: Get access token with Sheets scope
-          const client = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: 'https://www.googleapis.com/auth/spreadsheets',
-            callback: function(tokenResp) {
-              if (tokenResp.access_token) {
-                sessionStorage.setItem('access_token', tokenResp.access_token);
-                window.location.href = 'request.html';
-              } else {
-                document.getElementById('error').style.display = 'block';
-              }
-            }
-          });
-          client.requestAccessToken({ prompt: 'consent' });
-        }
-      });
-
-      google.accounts.id.renderButton(
-        document.getElementById('signin-btn'),
-        { type: 'standard', shape: 'pill', theme: 'outline', text: 'sign_in_with', size: 'large' }
-      );
-    };
   </script>
 </body>
 </html>
