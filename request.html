@@ -127,30 +127,38 @@
       btn.textContent = 'Sending...';
       status.style.display = 'none';
 
-      const payload = JSON.stringify({
+      const params = new URLSearchParams({
         email:     email,
         name:      name,
         title:     document.getElementById('title').value.trim(),
         message:   document.getElementById('message').value.trim(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        callback:  'handleResponse'
       });
 
-      // sendBeacon: fire-and-forget, cross-origin, follows redirects
-      const sent = navigator.sendBeacon(SCRIPT_URL, new Blob([payload], { type: 'application/json' }));
+      // JSONP — script tags follow redirects, no CORS issues
+      window.handleResponse = function(data) {
+        status.textContent = 'Request sent!';
+        status.className = 'status success';
+        status.style.display = 'block';
+        document.getElementById('request-form').reset();
+        btn.textContent = 'Send Request';
+        btn.disabled = false;
+        var old = document.getElementById('jsonp-script');
+        if (old) old.remove();
+      };
 
-      setTimeout(function() {
-        if (sent) {
-          status.textContent = 'Request sent!';
-          status.className = 'status success';
-          document.getElementById('request-form').reset();
-        } else {
-          status.textContent = 'Failed to send. Please try again.';
-          status.className = 'status error';
-        }
+      var script = document.createElement('script');
+      script.id = 'jsonp-script';
+      script.src = SCRIPT_URL + '?' + params.toString();
+      script.onerror = function() {
+        status.textContent = 'Failed to send. Please try again.';
+        status.className = 'status error';
         status.style.display = 'block';
         btn.textContent = 'Send Request';
         btn.disabled = false;
-      }, 1500);
+      };
+      document.head.appendChild(script);
     });
   </script>
 </body>
