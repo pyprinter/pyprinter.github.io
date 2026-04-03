@@ -42,13 +42,7 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    label {
-      display: block;
-      font-size: 0.85rem;
-      color: #aaa;
-      margin-bottom: 8px;
-      margin-top: 20px;
-    }
+    label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 8px; margin-top: 20px; }
     input, textarea {
       width: 100%;
       background: #111;
@@ -79,12 +73,7 @@
     button[type="submit"]:hover { background: #e0e0e0; }
     button[type="submit"]:active { transform: scale(0.98); }
     button[type="submit"]:disabled { background: #444; color: #888; cursor: not-allowed; }
-    .status {
-      margin-top: 16px;
-      font-size: 0.9rem;
-      text-align: center;
-      display: none;
-    }
+    .status { margin-top: 16px; font-size: 0.9rem; text-align: center; display: none; }
     .status.success { color: #6bcf7f; }
     .status.error { color: #ff6b6b; }
   </style>
@@ -95,70 +84,71 @@
       <h1>Submit a Request</h1>
       <div class="user-badge" id="user-badge">Loading...</div>
     </div>
-
     <form id="request-form">
       <label for="title">Request Title</label>
       <input type="text" id="title" placeholder="Brief summary of your request" required maxlength="120">
-
       <label for="message">Message</label>
       <textarea id="message" placeholder="Describe your request in detail..." required maxlength="2000"></textarea>
-
       <button type="submit" id="submit-btn">Send Request</button>
     </form>
-
     <div class="status" id="status"></div>
   </div>
 
   <script>
-    const email = sessionStorage.getItem('user_email');
-    const name  = sessionStorage.getItem('user_name');
-    if (!email) window.location.href = 'login.html';
+    const email  = sessionStorage.getItem('user_email');
+    const name   = sessionStorage.getItem('user_name');
+    const token  = sessionStorage.getItem('access_token');
+    const SHEET_ID = '1imUUwGu_rZgUq2AHVPY4Wi5_5yrFuLlXjtq1wBjiPs8';
+
+    if (!email || !token) window.location.href = 'login.html';
 
     document.getElementById('user-badge').textContent = email;
 
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxjxYrYkgjVyPcnp1EkHN1eEShAdfo43RQWRGE8iMC4fnW_MAtj6SNpl5iRejHc6WbA/exec';
-
-    document.getElementById('request-form').addEventListener('submit', function(e) {
+    document.getElementById('request-form').addEventListener('submit', async function(e) {
       e.preventDefault();
-
       const btn    = document.getElementById('submit-btn');
       const status = document.getElementById('status');
       btn.disabled = true;
       btn.textContent = 'Sending...';
       status.style.display = 'none';
 
-      const params = new URLSearchParams({
-        email:     email,
-        name:      name,
-        title:     document.getElementById('title').value.trim(),
-        message:   document.getElementById('message').value.trim(),
-        timestamp: new Date().toISOString(),
-        callback:  'handleResponse'
-      });
+      const row = [
+        new Date().toISOString(),
+        name,
+        email,
+        document.getElementById('title').value.trim(),
+        document.getElementById('message').value.trim()
+      ];
 
-      // JSONP — script tags follow redirects, no CORS issues
-      window.handleResponse = function(data) {
-        status.textContent = 'Request sent!';
-        status.className = 'status success';
-        status.style.display = 'block';
-        document.getElementById('request-form').reset();
-        btn.textContent = 'Send Request';
-        btn.disabled = false;
-        var old = document.getElementById('jsonp-script');
-        if (old) old.remove();
-      };
+      try {
+        const res = await fetch(
+          `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A1:E1:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ values: [row] })
+          }
+        );
 
-      var script = document.createElement('script');
-      script.id = 'jsonp-script';
-      script.src = SCRIPT_URL + '?' + params.toString();
-      script.onerror = function() {
-        status.textContent = 'Failed to send. Please try again.';
+        if (res.ok) {
+          status.textContent = 'Request sent!';
+          status.className = 'status success';
+          document.getElementById('request-form').reset();
+        } else {
+          const err = await res.json();
+          throw new Error(err.error?.message || res.status);
+        }
+      } catch (err) {
+        status.textContent = 'Error: ' + err.message;
         status.className = 'status error';
-        status.style.display = 'block';
-        btn.textContent = 'Send Request';
-        btn.disabled = false;
-      };
-      document.head.appendChild(script);
+      }
+
+      status.style.display = 'block';
+      btn.textContent = 'Send Request';
+      btn.disabled = false;
     });
   </script>
 </body>

@@ -27,66 +27,59 @@
     }
     h1 { font-size: 1.6rem; font-weight: 600; margin-bottom: 8px; }
     p { color: #888; font-size: 0.95rem; margin-bottom: 32px; }
-    #g_id_onload { display: none; }
     .g-signin { display: flex; justify-content: center; }
-    .error {
-      margin-top: 20px;
-      color: #ff6b6b;
-      font-size: 0.9rem;
-      display: none;
-    }
+    .error { margin-top: 20px; color: #ff6b6b; font-size: 0.9rem; display: none; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>Submit a Request</h1>
     <p>Sign in with your Google account to continue.</p>
-
-    <div id="g_id_onload"
-      data-client_id="997874091474-oub3k58f1v27taccjqbqd2ugvf4ndblh.apps.googleusercontent.com"
-      data-callback="handleCredential"
-      data-auto_prompt="false">
-    </div>
     <div class="g-signin">
-      <div class="g_id_signin"
-        data-type="standard"
-        data-shape="pill"
-        data-theme="outline"
-        data-text="sign_in_with"
-        data-size="large"
-        data-logo_alignment="left">
-      </div>
+      <div id="signin-btn"></div>
     </div>
     <div class="error" id="error">Sign-in failed. Please try again.</div>
   </div>
 
   <script>
+    const CLIENT_ID = '997874091474-oub3k58f1v27taccjqbqd2ugvf4ndblh.apps.googleusercontent.com';
+    const SHEET_ID  = '1imUUwGu_rZgUq2AHVPY4Wi5_5yrFuLlXjtq1wBjiPs8';
+
     function parseJwt(token) {
-      const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-      return JSON.parse(atob(base64));
+      return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
     }
 
-    function handleCredential(response) {
-      try {
-        const payload = parseJwt(response.credential);
-        const email = payload.email;
+    window.onload = function() {
+      // Step 1: Sign in to get identity
+      google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+        callback: function(resp) {
+          const payload = parseJwt(resp.credential);
+          sessionStorage.setItem('user_email', payload.email);
+          sessionStorage.setItem('user_name', payload.name || payload.email);
 
-        if (!email || !email.endsWith('@gmail.com')) {
-          document.getElementById('error').style.display = 'block';
-          document.getElementById('error').textContent = 'Only Gmail accounts are allowed.';
-          return;
+          // Step 2: Get access token with Sheets scope
+          const client = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: 'https://www.googleapis.com/auth/spreadsheets',
+            callback: function(tokenResp) {
+              if (tokenResp.access_token) {
+                sessionStorage.setItem('access_token', tokenResp.access_token);
+                window.location.href = 'request.html';
+              } else {
+                document.getElementById('error').style.display = 'block';
+              }
+            }
+          });
+          client.requestAccessToken({ prompt: 'none' });
         }
+      });
 
-        // Store user info for request page
-        sessionStorage.setItem('user_email', email);
-        sessionStorage.setItem('user_name', payload.name || email);
-        sessionStorage.setItem('id_token', response.credential);
-
-        window.location.href = 'request.html';
-      } catch (e) {
-        document.getElementById('error').style.display = 'block';
-      }
-    }
+      google.accounts.id.renderButton(
+        document.getElementById('signin-btn'),
+        { type: 'standard', shape: 'pill', theme: 'outline', text: 'sign_in_with', size: 'large' }
+      );
+    };
   </script>
 </body>
 </html>
